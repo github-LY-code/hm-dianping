@@ -60,7 +60,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     public Result createVoucherOrder(Long voucherId) {
         Long userId = UserHolder.getUser().getId();
         // 一人一单
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:", stringRedisTemplate);
+        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:"+userId, stringRedisTemplate);
         boolean locked = simpleRedisLock.tryLock(1200L);
         if (!locked) {
             return Result.fail("你已经领取过此优惠卷！");
