@@ -8,7 +8,9 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,17 +53,25 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         return createVoucherOrder(voucherId);
     }
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
     @Transactional
     public Result createVoucherOrder(Long voucherId) {
         Long userId = UserHolder.getUser().getId();
         // 一人一单
-        synchronized (userId.toString().intern()) {
+        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:", stringRedisTemplate);
+        boolean locked = simpleRedisLock.tryLock(1200L);
+        if (!locked) {
+            return Result.fail("你已经领取过此优惠卷！");
+        }
+        try {
             Long count = query()
                     .eq("user_id", userId)
                     .eq("voucher_id", voucherId)
                     .count();
             if (count > 0) {
-                return Result.fail("你已经领取过此优惠卷！");
+                return Result.fail("你已经使用过此优惠卷！");
             }
 
             // 扣减库存
@@ -85,6 +95,46 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             save(voucherOrder);
             // 返回订单ID
             return Result.ok(orderId);
+        } finally {
+            // 释放锁
+            simpleRedisLock.unlock();
         }
     }
+
+//    @Transactional
+//    public Result createVoucherOrder(Long voucherId) {
+//        Long userId = UserHolder.getUser().getId();
+//        // 一人一单
+//        synchronized (userId.toString().intern()) {
+//            Long count = query()
+//                    .eq("user_id", userId)
+//                    .eq("voucher_id", voucherId)
+//                    .count();
+//            if (count > 0) {
+//                return Result.fail("你已经领取过此优惠卷！");
+//            }
+//
+//            // 扣减库存
+//            boolean success = seckillVoucherService.update()
+//                    .setSql("stock = stock - 1")
+//                    .eq("voucher_id", voucherId)
+//                    .gt("stock", 0)
+//                    .update();
+//            if (!success) {
+//                return Result.fail("卷已被抢空！");
+//            }
+//
+//            // 创建订单
+//            VoucherOrder voucherOrder = new VoucherOrder();
+//            long orderId = redisIdWorker.nextId("order");
+//            voucherOrder.setId(orderId);
+//
+//            voucherOrder.setUserId(userId);
+//            voucherOrder.setVoucherId(voucherId);
+//            // 保存
+//            save(voucherOrder);
+//            // 返回订单ID
+//            return Result.ok(orderId);
+//        }
+//    }
 }
