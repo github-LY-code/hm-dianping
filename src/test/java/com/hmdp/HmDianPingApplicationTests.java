@@ -3,6 +3,7 @@ package com.hmdp;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import javax.annotation.Resource;
 import java.util.concurrent.CountDownLatch;
@@ -16,6 +17,9 @@ class HmDianPingApplicationTests {
     private ShopServiceImpl shopService;
     @Resource
     private RedisIdWorker redisIdWorker;
+
+    @Resource
+    private RedissonClient redissonClient;
 
     private final ExecutorService es =  Executors.newFixedThreadPool(500);
 
@@ -41,5 +45,10 @@ class HmDianPingApplicationTests {
         latch.await();
         long end = System.currentTimeMillis();
         System.out.println("time: "+(end-start)/1000.0);
+    }
+
+    @Test
+    public void  test2() {
+        System.out.println(redissonClient);
     }
 }

@@ -5,6 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +23,9 @@ import static com.hmdp.utils.RedisConstants.*;
 @Slf4j
 @Component
 public class RedisUtils {
+
+    @Resource
+    private RedissonClient redissonClient;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -84,11 +89,13 @@ public class RedisUtils {
 
         // 实现缓存重建
         // 尝试获取互斥
-        boolean success = true;
+        boolean success;
         R r = null;
+        RLock lock = redissonClient.getLock(lockPrefix+id);
         try {
             do {
-                success = tryLock(lockPrefix+id);
+//                success = tryLock(lockPrefix+id);
+                success = lock.tryLock();
                 if (success) {
                     break;
                 }
@@ -114,7 +121,8 @@ public class RedisUtils {
             throw new RuntimeException(e);
         } finally {
             // 重建完成或发生异常 释放锁
-            unlock(lockPrefix+id);
+            //unlock(lockPrefix+id);
+            lock.unlock();
         }
         // 返回
         return r;
