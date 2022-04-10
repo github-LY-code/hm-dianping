@@ -82,7 +82,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     private void createVoucherOrder(VoucherOrder voucherOrder) {
         Long voucherId = voucherOrder.getVoucherId();
-        Long userId = UserHolder.getUser().getId();
+        Long userId = voucherOrder.getUserId();
         // 一人一单
         //SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:"+userId, stringRedisTemplate);
         //boolean locked = simpleRedisLock.tryLock(1200L);
@@ -98,7 +98,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                     .eq("voucher_id", voucherId)
                     .count();
             if (count > 0) {
-                log.error("你已经使用过此优惠卷！");
+                log.error("你已拥有此优惠卷！");
                 return;
             }
 
@@ -131,7 +131,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         // 判断结果是否为0
         int r = res.intValue();
         if (r != 0) {
-            return Result.fail(r == 1 ? "此券已被抢光":"你已使用过此优惠券");
+            return Result.fail(r == 1 ? "此券已被抢光":"你已拥有此优惠卷！");
         }
         // 返回订单ID
         long orderId = redisIdWorker.nextId("order");
